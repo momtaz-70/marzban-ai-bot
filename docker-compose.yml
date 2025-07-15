@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  marzban-ai-bot:
+    build: .
+    container_name: marzban-ai-bot
+    restart: unless-stopped
+    
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - MARZBAN_URL=${MARZBAN_URL}
+      - MARZBAN_USERNAME=${MARZBAN_USERNAME}
+      - MARZBAN_PASSWORD=${MARZBAN_PASSWORD}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET:-default-secret}
+      - ALLOWED_USERS=${ALLOWED_USERS:-}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    
+    volumes:
+      - ./logs:/app/logs
+      - ./config:/app/config
+    
+    ports:
+      - "8080:8080"  # Webhook port
+    
+    networks:
+      - marzban-bot-network
+    
+    healthcheck:
+      test: ["CMD", "python", "app/health_check.py"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  marzban-bot-network:
+    driver: bridge
+
+volumes:
+  bot-logs:
+  bot-config:
