@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   marzban-ai-bot:
     build: .
@@ -18,7 +16,6 @@ services:
     
     volumes:
       - ./logs:/app/logs
-      - ./config:/app/config
     
     ports:
       - "8080:8080"  # Webhook port
@@ -39,4 +36,3 @@ networks:
 
 volumes:
   bot-logs:
-  bot-config:
