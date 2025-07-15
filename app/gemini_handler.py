@@ -14,7 +14,7 @@ class GeminiHandler:
         
         # Configure Gemini
         genai.configure(api_key=self.api_key)
-        self.model = genai.GenerativeModel('gemini-pro')
+        self.model = genai.GenerativeModel('gemini-1.5-flash')
         
         # System prompt for customer support
         self.system_prompt = """
@@ -82,7 +82,22 @@ class GeminiHandler:
             
             # Try to parse JSON response
             try:
-                result = json.loads(response.text.strip())
+                # Clean the response text
+                response_text = response.text.strip()
+                
+                # Try to extract JSON from markdown code blocks if present
+                if "```json" in response_text:
+                    start = response_text.find("```json") + 7
+                    end = response_text.find("```", start)
+                    if end != -1:
+                        response_text = response_text[start:end].strip()
+                elif "```" in response_text:
+                    start = response_text.find("```") + 3
+                    end = response_text.find("```", start)
+                    if end != -1:
+                        response_text = response_text[start:end].strip()
+                
+                result = json.loads(response_text)
                 
                 # Validate response structure
                 if not isinstance(result, dict) or 'response' not in result:
@@ -98,8 +113,8 @@ class GeminiHandler:
                 
             except (json.JSONDecodeError, ValueError) as e:
                 logger.warning(f"⚠️ Failed to parse AI response as JSON: {e}")
-                # Extract text response if JSON parsing fails
-                return self._fallback_response(response.text)
+                # Use fallback with rule-based detection
+                return self._create_fallback_response(message, response.text)
                 
         except Exception as e:
             logger.error(f"❌ Error processing message with Gemini: {e}")
@@ -115,6 +130,73 @@ class GeminiHandler:
             "action": "NONE",
             "parameters": {},
             "confidence": 0.5
+        }
+    
+    def _create_fallback_response(self, message: str, ai_text: str) -> Dict[str, Any]:
+        """Create fallback response with rule-based intent detection"""
+        action = self._detect_intent(message)
+        
+        # Create appropriate response based on detected intent
+        if action == 'REQUEST_ACCOUNT':
+            response_text = """
+سلام! 😊
+درخواست شما برای ایجاد اکانت جدید دریافت شد.
+لطفاً با پشتیبانی تماس بگیرید تا اکانت شما ایجاد شود.
+
+📞 پشتیبانی: @support_username
+            """
+        elif action == 'CHECK_ACCOUNT':
+            response_text = """
+برای بررسی وضعیت اکانت، لطفاً نام کاربری خود را ارسال کنید.
+مثال: "وضعیت اکانت user123"
+            """
+        elif action == 'GET_CONFIG':
+            response_text = """
+برای دریافت فایل کانفیگ، لطفاً نام کاربری خود را ارسال کنید.
+مثال: "فایل کانفیگ user123"
+            """
+        elif action == 'RENEW_ACCOUNT':
+            response_text = """
+برای تمدید اشتراک، لطفاً نام کاربری خود را ارسال کنید.
+مثال: "تمدید اکانت user123"
+            """
+        elif action == 'HELP_SETUP':
+            response_text = """
+📱 راهنمای نصب VPN:
+
+**اندروید:**
+1. V2rayNG را نصب کنید
+2. لینک اشتراک را کپی کنید
+3. در برنامه روی + کلیک کنید
+4. "Import from Clipboard" را انتخاب کنید
+
+**iOS:**
+1. FairVPN را نصب کنید
+2. لینک اشتراک را کپی کنید
+3. در برنامه روی + کلیک کنید
+
+نیاز به راهنمای بیشتر دارید؟
+            """
+        else:
+            # Use AI response if available, otherwise generic response
+            response_text = ai_text if ai_text else """
+سلام! 😊
+من دستیار پشتیبانی VPN هستم.
+
+می‌تونم کمکتون کنم با:
+• درخواست اکانت جدید
+• بررسی وضعیت اکانت
+• دریافت فایل کانفیگ
+• راهنمایی نصب
+
+سوال خود را بپرسید!
+            """
+        
+        return {
+            "response": response_text.strip(),
+            "action": action,
+            "parameters": {},
+            "confidence": 0.6
         }
     
     def _detect_intent(self, message: str) -> str:

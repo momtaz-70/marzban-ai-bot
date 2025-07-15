@@ -1,5 +1,6 @@
 import os
 import logging
+import asyncio
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
@@ -294,8 +295,9 @@ class MarzbanAIBot:
         await self.app.start()
         await self.app.updater.start_polling()
         
-        # Keep running
-        await self.app.updater.idle()
+        # Keep running indefinitely
+        while True:
+            await asyncio.sleep(1)
     
     async def stop(self):
         """Stop the bot"""
